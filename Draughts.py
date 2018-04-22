@@ -30,9 +30,6 @@ class NeuralDraught:
             self.foutput = tf.squeeze(self.output, axis=1, name='flatten_output')
 
         self.saver = tf.train.Saver()
-        if os.path.isfile(NeuralDraught.model_directory):
-            self.saver.restore(sess, NeuralDraught.model_directory)
-            print("Model restored.")
 
         with tf.name_scope('training'):
             self.expected = tf.placeholder(
@@ -177,7 +174,12 @@ if __name__ == "__main__":
 
     with tf.Session() as sess:
         agent = NeuralDraught(sess)
-        sess.run(tf.global_variables_initializer())
+
+        if os.path.isfile(NeuralDraught.model_directory):
+            agent.saver.restore(sess, NeuralDraught.model_directory)
+            print("Model restored.")
+        else:
+            sess.run(tf.global_variables_initializer())
 
         # Create the server, binding to localhost on port 9999
         server = socketserver.TCPServer((HOST, PORT), MyTCPHandler)
