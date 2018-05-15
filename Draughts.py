@@ -43,6 +43,9 @@ class NeuralDraught:
         values = self.sess.run(self.foutput, feed_dict={
             self.input: possible_boards
         })
+        print("Values", values)
+        values = self.consider_previous_choices(possible_boards, values)
+        print("Values", values)
         sum_of_values = sum(values)
 
         if sum_of_values < 0.001:
@@ -55,12 +58,19 @@ class NeuralDraught:
         NeuralDraught.single_game_history.append({'PLAYER': player_moving, 'BOARD': board_str})
         return str(idx)
 
-#    def
 
-#    def consider_previous_choices(self, possible_boards, values):
-#        sum_of_values = sum(values)
-#        for i in range(len(values)):
-#            if  in
+    def consider_previous_choices(self, possible_boards, values):
+        num_of_uses = [0] * len(values)
+        print("Uses", num_of_uses)
+        for i in range(len(values)):
+            board_str = ','.join(str(e) for e in possible_boards[i])
+            if board_str in NeuralDraught.training_history:
+                num_of_uses[i] = NeuralDraught.training_history[board_str][1]
+        print("Uses", num_of_uses)
+        sum_of_uses = sum(num_of_uses)
+        for i in range(len(values)):
+            values[i] += values[i] * num_of_uses[i]/sum_of_uses
+        return values
 
 
     def process_end_of_game(self, winner):
