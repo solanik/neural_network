@@ -6,11 +6,16 @@ import os.path
 import logging
 
 
+meta_data_cols = 4
+num_of_rows = 8
+num_of_cols = 4
+
+
 class NeuralDraught:
     single_game_history = []
     training_history = {}
     game_number = 0
-    max_game_number = 2000
+    max_game_number = 1000
     training_number = 0
     epsilon = 0.001
     dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -22,8 +27,8 @@ class NeuralDraught:
 
         with tf.name_scope('value_network'):
             self.input = tf.placeholder(
-                dtype=tf.float32, shape=(None, 8*4*5), name='input')
-            reshaped = tf.reshape(self.input, shape=[-1, 8, 4, 5], name="reshape")
+                dtype=tf.float32, shape=(None, num_of_rows*num_of_cols*meta_data_cols), name='input')
+            reshaped = tf.reshape(self.input, shape=[-1, num_of_rows, num_of_cols, meta_data_cols], name="reshape")
             c1 = tf.layers.conv2d(reshaped, filters=32, kernel_size=3, strides=2, activation=tf.nn.relu, name="conv1")
             flatten = tf.layers.flatten(c1, name="flatten")
             h1 = tf.layers.dense(flatten, 256, activation=tf.nn.relu)
@@ -43,9 +48,7 @@ class NeuralDraught:
         values = self.sess.run(self.foutput, feed_dict={
             self.input: possible_boards
         })
-        print("Values", values)
         values = self.consider_previous_choices(possible_boards, values)
-        print("Values", values)
         sum_of_values = sum(values)
 
         if sum_of_values < 0.001:
@@ -61,15 +64,14 @@ class NeuralDraught:
 
     def consider_previous_choices(self, possible_boards, values):
         num_of_uses = [0] * len(values)
-        print("Uses", num_of_uses)
         for i in range(len(values)):
             board_str = ','.join(str(e) for e in possible_boards[i])
             if board_str in NeuralDraught.training_history:
                 num_of_uses[i] = NeuralDraught.training_history[board_str][1]
-        print("Uses", num_of_uses)
         sum_of_uses = sum(num_of_uses)
-        for i in range(len(values)):
-            values[i] += values[i] * num_of_uses[i]/sum_of_uses
+        if sum_of_uses > 0:
+            for i in range(len(values)):
+                values[i] += values[i] * num_of_uses[i]/sum_of_uses
         return values
 
 
@@ -119,23 +121,29 @@ class NeuralDraught:
         #print("Model saved in path: %s" % save_path)
 
 
+row_translator = {
+    'W': {0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6, 7: 7},
+    'B': {0: 7, 1: 6, 2: 5, 3: 4, 4: 3, 5: 2, 6: 1, 7: 0}
+}
+col_translator = {
+    'W': {0: 0, 1: 0, 2: 1, 3: 1, 4: 2, 5: 2, 6: 3, 7: 3},
+    'B': {0: 3, 1: 3, 2: 2, 3: 2, 4: 1, 5: 1, 6: 0, 7: 0}
+}
+
+
 def parse_board(player_moving, possible_board_data):
-    possible_board = [0]*32*5
+    possible_board = [0]*32*meta_data_cols
     pieces_with_location = possible_board_data.split(", ")
     for piece_with_location in pieces_with_location:
         location, piece = piece_with_location.split("=")
         col_str, row_str = location.split(",")
-        col = math.floor(int(col_str)/2)
-        row = int(row_str)
+        col = col_translator[player_moving][int(col_str)]
+        row = row_translator[player_moving][int(row_str)]
         what_piece = 0 if piece == "W,P" else \
                      1 if piece == "W,K" else \
                      2 if piece == "B,P" else \
                      3  # piece == "B,K"
-        possible_board[row*20 + col*5 + what_piece] = 1
-    player_moving_int = 1 if player_moving == "W" else \
-                        0  # player_moving == "B"
-    for i in range(32):
-        possible_board[i*5 + 4] = player_moving_int
+        possible_board[row*num_of_cols*meta_data_cols + col*meta_data_cols + what_piece] = 1
     return possible_board
 
 
